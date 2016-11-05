@@ -33,7 +33,7 @@ import pdb
 HParams = namedtuple('HParams',
                      'batch_size, num_classes, min_lrn_rate, lrn_rate, '
                      'num_residual_units, use_bottleneck, weight_decay_rate, '
-                     'relu_leakiness, optimizer, filters')
+                     'relu_leakiness, optimizer, filters, atrous')
 
 
 class ResNet(object):
@@ -79,6 +79,7 @@ class ResNet(object):
 
     res_func = self._bottleneck_residual
     filters = self.hps.filters
+    atrous = self.hps.atrous
 
     with tf.variable_scope('group_2_0'):
       x = res_func(x, filters[0], filters[1], self._stride_arr(1))
@@ -92,25 +93,40 @@ class ResNet(object):
       with tf.variable_scope('group_3_%d' % i):
         x = res_func(x, filters[2], filters[2], self._stride_arr(1))
 
-    with tf.variable_scope('group_4_0'):
-      x = res_func(x, filters[2], filters[3], self._stride_arr(2))
-    for i in xrange(1, self.hps.num_residual_units[2]):
-      with tf.variable_scope('group_4_%d' % i):
-        x = res_func(x, filters[3], filters[3], self._stride_arr(1))
+    if atrous == False:
+      with tf.variable_scope('group_4_0'):
+        x = res_func(x, filters[2], filters[3], self._stride_arr(2))
+      for i in xrange(1, self.hps.num_residual_units[2]):
+        with tf.variable_scope('group_4_%d' % i):
+          x = res_func(x, filters[3], filters[3], self._stride_arr(1))
 
-    with tf.variable_scope('group_5_0'):
-      x = res_func(x, filters[3], filters[4], self._stride_arr(2))
-    for i in xrange(1, self.hps.num_residual_units[3]):
-      with tf.variable_scope('group_5_%d' % i):
-        x = res_func(x, filters[4], filters[4], self._stride_arr(1))      
+      with tf.variable_scope('group_5_0'):
+        x = res_func(x, filters[3], filters[4], self._stride_arr(2))
+      for i in xrange(1, self.hps.num_residual_units[3]):
+        with tf.variable_scope('group_5_%d' % i):
+          x = res_func(x, filters[4], filters[4], self._stride_arr(1))
+
+    else:
+      with tf.variable_scope('group_4_0'):
+        x = res_func(x, filters[2], filters[3], self._stride_arr(1), 2)
+      for i in xrange(1, self.hps.num_residual_units[2]):
+        with tf.variable_scope('group_4_%d' % i):
+          x = res_func(x, filters[3], filters[3], self._stride_arr(1), 2)
+
+      with tf.variable_scope('group_5_0'):
+        x = res_func(x, filters[3], filters[4], self._stride_arr(1), 4)
+      for i in xrange(1, self.hps.num_residual_units[3]):
+        with tf.variable_scope('group_5_%d' % i):
+          x = res_func(x, filters[4], filters[4], self._stride_arr(1), 4)
 
     with tf.variable_scope('group_last'):
       x = self._relu(x, self.hps.relu_leakiness)
+      self.fcpred = x
       x = self._global_avg_pool(x)
 
     with tf.variable_scope('fc1000'):
       logits = self._fully_connected(x, self.hps.num_classes)
-      self.predictions = tf.nn.softmax(logits)
+      self.pred = tf.nn.softmax(logits)
 
     with tf.variable_scope('costs'):
       xent = tf.nn.softmax_cross_entropy_with_logits(
@@ -186,28 +202,28 @@ class ResNet(object):
       y.set_shape(x.get_shape())
       return y
 
-  def _bottleneck_residual(self, x, in_filter, out_filter, stride):
-    """Bottleneck resisual unit with 3 sub layers."""
+  def _bottleneck_residual(self, x, in_filter, out_filter, stride, atrous=1):
+    """Bottleneck residual unit with 3 sub layers."""
 
     orig_x = x
 
     with tf.variable_scope('block_1'):
-      x = self._conv('conv', x, 1, in_filter, out_filter/4, stride)
+      x = self._conv('conv', x, 1, in_filter, out_filter/4, stride, atrous)
       x = self._batch_norm('bn', x)
       x = self._relu(x, self.hps.relu_leakiness)
 
     with tf.variable_scope('block_2'):
-      x = self._conv('conv', x, 3, out_filter/4, out_filter/4, [1, 1, 1, 1])
+      x = self._conv('conv', x, 3, out_filter/4, out_filter/4, [1, 1, 1, 1], atrous)
       x = self._batch_norm('bn', x)
       x = self._relu(x, self.hps.relu_leakiness)
 
     with tf.variable_scope('block_3'):
-      x = self._conv('conv', x, 1, out_filter/4, out_filter, [1, 1, 1, 1])
+      x = self._conv('conv', x, 1, out_filter/4, out_filter, [1, 1, 1, 1], atrous)
       x = self._batch_norm('bn', x)
 
     with tf.variable_scope('block_add'):
       if in_filter != out_filter:
-        orig_x = self._conv('conv', orig_x, 1, in_filter, out_filter, stride)
+        orig_x = self._conv('conv', orig_x, 1, in_filter, out_filter, stride, atrous)
         orig_x = self._batch_norm('bn', orig_x)
       x += orig_x
       x = self._relu(x, self.hps.relu_leakiness)
@@ -225,7 +241,7 @@ class ResNet(object):
 
     return tf.mul(self.hps.weight_decay_rate, tf.add_n(costs))
 
-  def _conv(self, name, x, filter_size, in_filters, out_filters, strides):
+  def _conv(self, name, x, filter_size, in_filters, out_filters, strides, atrous=1):
     """Convolution."""
     with tf.variable_scope(name):
       n = filter_size * filter_size * out_filters
@@ -233,7 +249,11 @@ class ResNet(object):
           'DW', [filter_size, filter_size, in_filters, out_filters],
           tf.float32, initializer=tf.random_normal_initializer(
               stddev=np.sqrt(2.0/n)))
-      return tf.nn.conv2d(x, kernel, strides, padding='SAME')
+      if atrous == 1:
+        return tf.nn.conv2d(x, kernel, strides, padding='SAME')
+      else:
+        assert(strides == self._stride_arr(1))
+        return tf.nn.atrous_conv2d(x, kernel, rate=atrous, padding='SAME')
 
   def _relu(self, x, leakiness=0.0):
     """Relu, with optional leaky support."""

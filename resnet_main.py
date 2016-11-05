@@ -38,6 +38,7 @@ if __name__ == "__main__":
                 weight_decay_rate = 0.0002,
                 relu_leakiness = 0.0,
                 filters = [64, 256, 512, 1024, 2048],
+                atrous = True,
                 optimizer = 'mom')
   model = resnet_model.ResNet(hps, 'eval')
 
@@ -47,13 +48,21 @@ if __name__ == "__main__":
 
   if sys.argv[2] == 'single':
     im = process_im('example/cat.jpg', mu)
-    pred = sess.run(model.predictions, feed_dict={
+    pred = sess.run(model.pred, feed_dict={
               model.images  : im,
               model.labels  : np.zeros((1, 1000)) # dummy
           })
     labels_file = caffe_root + 'data/ilsvrc12/synset_words.txt'
     labels_name = np.loadtxt(labels_file, str, delimiter='\t')
     print 'output label:', labels_name[pred.argmax()]
+
+  elif sys.argv[2] == 'atrous':
+    im = process_im('example/cat.jpg', mu)
+    fcpred = sess.run(model.fcpred, feed_dict={
+              model.images  : im,
+              model.labels  : np.zeros((1, 1000)) # dummy
+          })
+    pdb.set_trace()    
 
   elif sys.argv[2] == 'imagenet':
     imagenet_val_dir = '/media/Work_HD/cxliu/datasets/imagenet/ILSVRC2012_img_val/'
@@ -66,7 +75,7 @@ if __name__ == "__main__":
       [imname, label] = line.split(' ')
       label = int(label)
       im = process_im(imagenet_val_dir + imname, mu)
-      pred = sess.run(model.predictions, feed_dict={
+      pred = sess.run(model.pred, feed_dict={
           model.images  : im,
           model.labels  : np.zeros((1, 1000)) # dummy
       })
