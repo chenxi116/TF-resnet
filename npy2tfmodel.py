@@ -19,6 +19,7 @@ hps = resnet_model.HParams(batch_size = 1,
               weight_decay_rate = 0.0002,
               relu_leakiness = 0.0,
               filters = [64, 256, 512, 1024, 2048],
+              atrous = False,
               optimizer = 'mom')
 model = resnet_model.ResNet(hps, 'eval')
 

@@ -79,7 +79,6 @@ class ResNet(object):
 
     res_func = self._bottleneck_residual
     filters = self.hps.filters
-    atrous = self.hps.atrous
 
     with tf.variable_scope('group_2_0'):
       x = res_func(x, filters[0], filters[1], self._stride_arr(1))
@@ -93,7 +92,7 @@ class ResNet(object):
       with tf.variable_scope('group_3_%d' % i):
         x = res_func(x, filters[2], filters[2], self._stride_arr(1))
 
-    if atrous == False:
+    if self.hps.atrous == False:
       with tf.variable_scope('group_4_0'):
         x = res_func(x, filters[2], filters[3], self._stride_arr(2))
       for i in xrange(1, self.hps.num_residual_units[2]):
