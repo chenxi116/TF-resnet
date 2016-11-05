@@ -58,9 +58,9 @@ class ResNet(object):
 
   def build_graph(self):
     """Build a whole graph for the model."""
-    self.global_step = tf.Variable(0, name='global_step', trainable=False)
     self._build_model()
     if self.mode == 'train':
+      self.global_step = tf.Variable(0, name='global_step', trainable=False)
       self._build_train_op()
     self.summaries = tf.merge_all_summaries()
 
@@ -77,37 +77,32 @@ class ResNet(object):
       x = self._relu(x, self.hps.relu_leakiness)
       x = tf.nn.max_pool(x, [1, 3, 3, 1], [1, 2, 2, 1], padding='SAME')
 
-    activate_before_residual = [True, False, False, False]
     res_func = self._bottleneck_residual
     filters = self.hps.filters
 
     with tf.variable_scope('group_2_0'):
-      x = res_func(x, filters[0], filters[1], self._stride_arr(1),
-                   activate_before_residual[0])
+      x = res_func(x, filters[0], filters[1], self._stride_arr(1))
     for i in xrange(1, self.hps.num_residual_units[0]):
       with tf.variable_scope('group_2_%d' % i):
-        x = res_func(x, filters[1], filters[1], self._stride_arr(1), False)
+        x = res_func(x, filters[1], filters[1], self._stride_arr(1))
 
     with tf.variable_scope('group_3_0'):
-      x = res_func(x, filters[1], filters[2], self._stride_arr(2),
-                   activate_before_residual[1])
+      x = res_func(x, filters[1], filters[2], self._stride_arr(2))
     for i in xrange(1, self.hps.num_residual_units[1]):
       with tf.variable_scope('group_3_%d' % i):
-        x = res_func(x, filters[2], filters[2], self._stride_arr(1), False)
+        x = res_func(x, filters[2], filters[2], self._stride_arr(1))
 
     with tf.variable_scope('group_4_0'):
-      x = res_func(x, filters[2], filters[3], self._stride_arr(2),
-                   activate_before_residual[2])
+      x = res_func(x, filters[2], filters[3], self._stride_arr(2))
     for i in xrange(1, self.hps.num_residual_units[2]):
       with tf.variable_scope('group_4_%d' % i):
-        x = res_func(x, filters[3], filters[3], self._stride_arr(1), False)
+        x = res_func(x, filters[3], filters[3], self._stride_arr(1))
 
     with tf.variable_scope('group_5_0'):
-      x = res_func(x, filters[3], filters[4], self._stride_arr(2),
-                   activate_before_residual[3])
+      x = res_func(x, filters[3], filters[4], self._stride_arr(2))
     for i in xrange(1, self.hps.num_residual_units[3]):
       with tf.variable_scope('group_5_%d' % i):
-        x = res_func(x, filters[4], filters[4], self._stride_arr(1), False)      
+        x = res_func(x, filters[4], filters[4], self._stride_arr(1))      
 
     with tf.variable_scope('group_last'):
       x = self._relu(x, self.hps.relu_leakiness)
@@ -191,19 +186,8 @@ class ResNet(object):
       y.set_shape(x.get_shape())
       return y
 
-  def _bottleneck_residual(self, x, in_filter, out_filter, stride,
-                           activate_before_residual=False):
+  def _bottleneck_residual(self, x, in_filter, out_filter, stride):
     """Bottleneck resisual unit with 3 sub layers."""
-    # if activate_before_residual:
-    #   with tf.variable_scope('block_0'):
-    #     x = self._batch_norm('bn', x)
-    #     x = self._relu(x, self.hps.relu_leakiness)
-    #     orig_x = x
-    # else:
-    #   with tf.variable_scope('block_0'):
-    #     orig_x = x
-    #     x = self._batch_norm('bn', x)
-    #     x = self._relu(x, self.hps.relu_leakiness)
 
     orig_x = x
 
