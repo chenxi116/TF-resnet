@@ -4,7 +4,6 @@ import resnet_model
 from PIL import Image
 import sys
 import os; os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
-import matplotlib.pyplot as plt
 import pdb
 
 # sample usage:
@@ -27,20 +26,12 @@ if __name__ == "__main__":
   caffe_root = '/media/Work_HD/cxliu/tools/caffe/'
   mu = np.load(caffe_root + 'python/caffe/imagenet/ilsvrc_2012_mean.npy')
   mu = mu.mean(1).mean(1)
-  pretrained_model = './model/ResNet101_conv_init.tfmodel'
+  pretrained_model = './model/ResNet101_init.tfmodel'
 
-  hps = resnet_model.HParams(batch_size = 1,
-                num_classes = 1000,
-                min_lrn_rate = 0.0001,
-                lrn_rate = 0.1,
-                num_residual_units = [3, 4, 23, 3],
-                use_bottleneck = True,
-                weight_decay_rate = 0.0002,
-                relu_leakiness = 0.0,
-                filters = [64, 256, 512, 1024, 2048],
-                atrous = False,
-                optimizer = 'mom')
-  model = resnet_model.ResNet(hps, 'eval')
+  atrous = False
+  if sys.argv[2] == 'atrous':
+    atrous = True
+  model = resnet_model.ResNet(atrous=atrous)
 
   snapshot_restorer = tf.train.Saver()
   sess = tf.Session()
@@ -63,7 +54,7 @@ if __name__ == "__main__":
               model.images  : im,
               model.labels  : np.zeros((1, 1000)) # dummy
           })
-    pdb.set_trace()    
+    print 'output size:', np.shape(pred)
 
   elif sys.argv[2] == 'imagenet':
     imagenet_val_dir = '/media/Work_HD/cxliu/datasets/imagenet/ILSVRC2012_img_val/'
@@ -81,10 +72,10 @@ if __name__ == "__main__":
           model.labels  : np.zeros((1, 1000)) # dummy
       })
       pred = pred.squeeze()
-      top1 = pred.argmax()
       top5 = pred.argsort()[::-1][0:5]
+      top1 = top5[0]
       if label == top1:
         c1 += 1
       if label in top5:
         c5 += 1
-      print('images: %d\ttop 1: %0.4f\ttop 5 %0.4f' % (i + 1, c1/(i + 1.), c5/(i + 1.)))
+      print('images: %d\ttop 1: %0.4f\ttop 5: %0.4f' % (i + 1, c1/(i + 1.), c5/(i + 1.)))

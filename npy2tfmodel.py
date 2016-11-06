@@ -13,18 +13,7 @@ weights = np.load(sys.argv[2])[()]
 weights['fc1000/DW'] = np.expand_dims(
   np.expand_dims(weights['fc1000/DW'], axis=0), axis=0)
 
-hps = resnet_model.HParams(batch_size = 1,
-              num_classes = 1000,
-              min_lrn_rate = 0.0001,
-              lrn_rate = 0.1,
-              num_residual_units = [3, 4, 23, 3],
-              use_bottleneck = True,
-              weight_decay_rate = 0.0002,
-              relu_leakiness = 0.0,
-              filters = [64, 256, 512, 1024, 2048],
-              atrous = True,
-              optimizer = 'mom')
-model = resnet_model.ResNet(hps, 'eval')
+model = resnet_model.ResNet(atrous=False)
 
 sess = tf.Session()
 sess.run(tf.initialize_all_variables())
