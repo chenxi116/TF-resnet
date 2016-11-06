@@ -120,20 +120,22 @@ class ResNet(object):
 
     with tf.variable_scope('group_last'):
       x = self._relu(x, self.hps.relu_leakiness)
-      self.fcpred = x
-      x = self._global_avg_pool(x)
+      if self.hps.atrous == False:
+        x = self._global_avg_pool(x)
 
     with tf.variable_scope('fc1000'):
-      logits = self._fully_connected(x, self.hps.num_classes)
-      self.pred = tf.nn.softmax(logits)
+      logits = self._fully_convolutional(x, self.hps.num_classes)
+      logits_flat = tf.reshape(logits, [-1, self.hps.num_classes])
+      pred = tf.nn.softmax(logits_flat)
+      self.pred = tf.reshape(pred, tf.shape(logits))
 
-    with tf.variable_scope('costs'):
-      xent = tf.nn.softmax_cross_entropy_with_logits(
-          logits, self.labels)
-      self.cost = tf.reduce_mean(xent, name='xent')
-      self.cost += self._decay()
+    # with tf.variable_scope('costs'):
+    #   xent = tf.nn.softmax_cross_entropy_with_logits(
+    #       logits, self.labels)
+    #   self.cost = tf.reduce_mean(xent, name='xent')
+    #   self.cost += self._decay()
 
-      tf.scalar_summary('cost', self.cost)
+    #   tf.scalar_summary('cost', self.cost)
 
   def _build_train_op(self):
     """Build training specific ops for the graph."""
@@ -268,6 +270,15 @@ class ResNet(object):
                         initializer=tf.constant_initializer())
     return tf.nn.xw_plus_b(x, w, b)
 
+  def _fully_convolutional(self, x, out_dim):
+    """FullyConvolutional layer for final output."""
+    w = tf.get_variable(
+        'DW', [1, 1, self.hps.filters[-1], out_dim],
+        initializer=tf.uniform_unit_scaling_initializer(factor=1.0))
+    b = tf.get_variable('biases', [out_dim],
+                        initializer=tf.constant_initializer())  
+    return tf.nn.conv2d(x, w, self._stride_arr(1), padding='SAME') + b 
+
   def _global_avg_pool(self, x):
     assert x.get_shape().ndims == 4
-    return tf.reduce_mean(x, [1, 2])
+    return tf.expand_dims(tf.expand_dims(tf.reduce_mean(x, [1, 2]), 0), 0)

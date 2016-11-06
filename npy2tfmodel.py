@@ -9,6 +9,9 @@ import pdb
 # python npy2tfmodel.py 0 ./model/ResNet101.npy ./model/ResNet101_init.tfmodel
 
 weights = np.load(sys.argv[2])[()]
+# fully connected -> fully convolutional
+weights['fc1000/DW'] = np.expand_dims(
+  np.expand_dims(weights['fc1000/DW'], axis=0), axis=0)
 
 hps = resnet_model.HParams(batch_size = 1,
               num_classes = 1000,
@@ -19,7 +22,7 @@ hps = resnet_model.HParams(batch_size = 1,
               weight_decay_rate = 0.0002,
               relu_leakiness = 0.0,
               filters = [64, 256, 512, 1024, 2048],
-              atrous = False,
+              atrous = True,
               optimizer = 'mom')
 model = resnet_model.ResNet(hps, 'eval')
 

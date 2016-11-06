@@ -27,7 +27,7 @@ if __name__ == "__main__":
   caffe_root = '/media/Work_HD/cxliu/tools/caffe/'
   mu = np.load(caffe_root + 'python/caffe/imagenet/ilsvrc_2012_mean.npy')
   mu = mu.mean(1).mean(1)
-  pretrained_model = './model/ResNet101_init.tfmodel'
+  pretrained_model = './model/ResNet101_conv_init.tfmodel'
 
   hps = resnet_model.HParams(batch_size = 1,
                 num_classes = 1000,
@@ -38,7 +38,7 @@ if __name__ == "__main__":
                 weight_decay_rate = 0.0002,
                 relu_leakiness = 0.0,
                 filters = [64, 256, 512, 1024, 2048],
-                atrous = True,
+                atrous = False,
                 optimizer = 'mom')
   model = resnet_model.ResNet(hps, 'eval')
 
@@ -52,13 +52,14 @@ if __name__ == "__main__":
               model.images  : im,
               model.labels  : np.zeros((1, 1000)) # dummy
           })
+    pred = pred.squeeze()
     labels_file = caffe_root + 'data/ilsvrc12/synset_words.txt'
     labels_name = np.loadtxt(labels_file, str, delimiter='\t')
     print 'output label:', labels_name[pred.argmax()]
 
   elif sys.argv[2] == 'atrous':
     im = process_im('example/cat.jpg', mu)
-    fcpred = sess.run(model.fcpred, feed_dict={
+    pred = sess.run(model.pred, feed_dict={
               model.images  : im,
               model.labels  : np.zeros((1, 1000)) # dummy
           })
@@ -79,8 +80,9 @@ if __name__ == "__main__":
           model.images  : im,
           model.labels  : np.zeros((1, 1000)) # dummy
       })
+      pred = pred.squeeze()
       top1 = pred.argmax()
-      top5 = pred[0].argsort()[::-1][0:5]
+      top5 = pred.argsort()[::-1][0:5]
       if label == top1:
         c1 += 1
       if label in top5:
