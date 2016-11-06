@@ -64,7 +64,8 @@ class ResNet(object):
     self.atrous = atrous
     self.optimizer = optimizer
     self.mode = mode
-    self.build_graph()
+    with tf.variable_scope("ResNet"):
+      self.build_graph()
 
     self._extra_train_ops = []
 

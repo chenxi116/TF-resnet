@@ -20,11 +20,12 @@ sess.run(tf.initialize_all_variables())
 var_list = tf.all_variables()
 count = 0
 for item in var_list:
-    if not item.name[0:-2] in weights.keys():
+    item_name = item.name[7:-2] # "ResNet/" at beginning, ":0" at last
+    if not item_name in weights.keys():
         continue
-    print item.name[0:-2]
+    print item_name
     count += 1
-    sess.run(tf.assign(item, weights[item.name[0:-2]]))
+    sess.run(tf.assign(item, weights[item_name]))
 assert(count == len(weights))
 
 snapshot_saver = tf.train.Saver()
