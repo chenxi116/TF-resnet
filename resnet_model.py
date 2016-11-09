@@ -41,6 +41,8 @@ class ResNet(object):
                      filters = [64, 256, 512, 1024, 2048],
                      atrous = False,
                      optimizer = 'mom',
+                     images = tf.placeholder(tf.float32),
+                     labels = tf.placeholder(tf.float32),
                      mode = 'eval'):
     """ResNet constructor.
 
@@ -50,8 +52,8 @@ class ResNet(object):
       labels: Batches of labels. [batch_size, num_classes]
       mode: One of 'train' and 'eval'.
     """
-    self.images = tf.placeholder(tf.float32)
-    self.labels = tf.placeholder(tf.float32)
+    self.images = images
+    self.labels = labels
     self.batch_size = batch_size
     self.num_classes = num_classes
     self.min_lrn_rate = min_lrn_rate
@@ -133,14 +135,15 @@ class ResNet(object):
 
     with tf.variable_scope('group_last'):
       x = self._relu(x, self.relu_leakiness)
+      self.res5c = x
       if self.atrous == False:
         x = self._global_avg_pool(x)
 
     with tf.variable_scope('fc1000'):
-      logits = self._fully_convolutional(x, self.num_classes)
-      logits_flat = tf.reshape(logits, [-1, self.num_classes])
+      self.logits = self._fully_convolutional(x, self.num_classes)
+      logits_flat = tf.reshape(self.logits, [-1, self.num_classes])
       pred = tf.nn.softmax(logits_flat)
-      self.pred = tf.reshape(pred, tf.shape(logits))
+      self.pred = tf.reshape(pred, tf.shape(self.logits))
 
     # with tf.variable_scope('costs'):
     #   xent = tf.nn.softmax_cross_entropy_with_logits(
