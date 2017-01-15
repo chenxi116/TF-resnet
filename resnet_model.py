@@ -77,7 +77,7 @@ class ResNet(object):
     if self.mode == 'train':
       self.global_step = tf.Variable(0, name='global_step', trainable=False)
       self._build_train_op()
-    self.summaries = tf.summary.merge_all()
+    # self.summaries = tf.summary.merge_all()
 
   def _stride_arr(self, stride):
     """Map a stride scalar to the stride array for tf.nn.conv2d."""
@@ -211,8 +211,8 @@ class ResNet(object):
             'variance', params_shape, tf.float32,
             initializer=tf.constant_initializer(1.0, tf.float32),
             trainable=False)
-        tf.summary.histogram(mean.op.name, mean)
-        tf.summary.histogram(variance.op.name, variance)
+        # tf.summary.histogram(mean.op.name, mean)
+        # tf.summary.histogram(variance.op.name, variance)
       # elipson used to be 1e-5. Maybe 0.001 solves NaN problem in deeper net.
       y = tf.nn.batch_normalization(
           x, mean, variance, beta, gamma, 0.001)
