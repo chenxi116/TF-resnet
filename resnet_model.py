@@ -135,9 +135,9 @@ class ResNet(object):
 
     with tf.variable_scope('group_last'):
       x = self._relu(x, self.relu_leakiness)
-      self.res5c = x
       if self.atrous == False:
         x = self._global_avg_pool(x)
+      self.res5c = x
 
     with tf.variable_scope('fc1000'):
       self.logits = self._fully_convolutional(x, self.num_classes)
