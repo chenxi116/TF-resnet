@@ -32,11 +32,11 @@ class ResNet(object):
 
   def __init__(self, batch_size = 1,
                      num_classes = 1000,
-                     min_lrn_rate = 0.0001,
                      lrn_rate = 0.1,
                      num_residual_units = [3, 4, 23, 3],
                      use_bottleneck = True,
-                     weight_decay_rate = 0.0002,
+                     weight_decay_rate = 0.0001,
+                     bn = False,
                      relu_leakiness = 0.0,
                      filters = [64, 256, 512, 1024, 2048],
                      atrous = False,
@@ -56,7 +56,6 @@ class ResNet(object):
     self.labels = labels
     self.batch_size = batch_size
     self.num_classes = num_classes
-    self.min_lrn_rate = min_lrn_rate
     self.lrn_rate = lrn_rate
     self.num_residual_units = num_residual_units
     self.use_bottleneck = use_bottleneck
@@ -64,6 +63,7 @@ class ResNet(object):
     self.relu_leakiness = relu_leakiness
     self.filters = filters
     self.atrous = atrous
+    self.bn = bn
     self.optimizer = optimizer
     self.mode = mode
     with tf.variable_scope("ResNet"):
@@ -75,7 +75,6 @@ class ResNet(object):
     """Build a whole graph for the model."""
     self._build_model()
     if self.mode == 'train':
-      self.global_step = tf.Variable(0, name='global_step', trainable=False)
       self._build_train_op()
     # self.summaries = tf.summary.merge_all()
 
@@ -145,33 +144,34 @@ class ResNet(object):
       pred = tf.nn.softmax(logits_flat)
       self.pred = tf.reshape(pred, tf.shape(self.logits))
 
-    # with tf.variable_scope('costs'):
-    #   xent = tf.nn.softmax_cross_entropy_with_logits(
-    #       logits, self.labels)
-    #   self.cost = tf.reduce_mean(xent, name='xent')
-    #   self.cost += self._decay()
-
-    #   tf.summary.scalar('cost', self.cost)
-
   def _build_train_op(self):
     """Build training specific ops for the graph."""
-    self.lrn_rate = tf.constant(self.lrn_rate, tf.float32)
-    tf.summary.scalar('learning rate', self.lrn_rate)
+    xent = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.labels)
+    self.cost = tf.reduce_mean(xent, name='xent')
+    self.cost += self._decay()
+    # tf.summary.scalar('cost', self.cost)
+
+    self.global_step = tf.Variable(0, name='global_step', trainable=False)
+
+    self.learning_rate = tf.constant(self.lrn_rate, tf.float32)
+    # tf.summary.scalar('learning rate', self.lrn_rate)
 
     trainable_variables = tf.trainable_variables()
     grads = tf.gradients(self.cost, trainable_variables)
 
     if self.optimizer == 'sgd':
-      optimizer = tf.train.GradientDescentOptimizer(self.lrn_rate)
+      optimizer = tf.train.GradientDescentOptimizer(self.learning_rate)
     elif self.optimizer == 'mom':
-      optimizer = tf.train.MomentumOptimizer(self.lrn_rate, 0.9)
+      optimizer = tf.train.MomentumOptimizer(self.learning_rate, 0.9, use_nesterov=True)
+    else:
+      raise NameError("Unknown optimizer type %s!" % self.optimizer)
 
     apply_op = optimizer.apply_gradients(
         zip(grads, trainable_variables),
         global_step=self.global_step, name='train_step')
 
     train_ops = [apply_op] + self._extra_train_ops
-    self.train_op = tf.group(*train_ops)
+    self.train_step = tf.group(*train_ops)
 
   # TODO(xpan): Consider batch_norm in contrib/layers/python/layers/layers.py
   def _batch_norm(self, name, x):
@@ -181,12 +181,14 @@ class ResNet(object):
 
       beta = tf.get_variable(
           'beta', params_shape, tf.float32,
-          initializer=tf.constant_initializer(0.0, tf.float32))
+          initializer=tf.constant_initializer(0.0, tf.float32),
+          trainable=False)
       gamma = tf.get_variable(
           'gamma', params_shape, tf.float32,
-          initializer=tf.constant_initializer(1.0, tf.float32))
+          initializer=tf.constant_initializer(1.0, tf.float32),
+          trainable=False)
 
-      if self.mode == 'train':
+      if self.bn:
         mean, variance = tf.nn.moments(x, [0, 1, 2], name='moments')
 
         moving_mean = tf.get_variable(
