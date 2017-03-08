@@ -42,7 +42,7 @@ class ResNet(object):
                      atrous = False,
                      optimizer = 'mom',
                      images = tf.placeholder(tf.float32),
-                     labels = tf.placeholder(tf.float32),
+                     labels = tf.placeholder(tf.int32),
                      mode = 'eval'):
     """ResNet constructor.
 
@@ -66,10 +66,9 @@ class ResNet(object):
     self.bn = bn
     self.optimizer = optimizer
     self.mode = mode
+    self._extra_train_ops = []
     with tf.variable_scope("ResNet"):
       self.build_graph()
-
-    self._extra_train_ops = []
 
   def build_graph(self):
     """Build a whole graph for the model."""
