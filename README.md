@@ -1,6 +1,6 @@
 # TF-resnet
 
-This is a Tensorflow implementation of ResNet. 
+This is a Tensorflow implementation of ResNet, compatible with Tensorflow 1.2.1. 
 
 Currently it only supports testing the 101 layer model by converting the caffemodel provided by Kaiming. Although supporting other ResNet variants and training should be quick and easy. 
 
@@ -19,6 +19,11 @@ python npy2tfmodel.py 0 ./model/ResNet101.npy ./model/ResNet101_init.tfmodel
 - Test on a single image
 ```bash
 python resnet_main.py 0 single
+```
+
+- To test on the ILSVRC12 validation set, run
+```bash
+python resnet_main.py 0 imagenet
 ```
 
 ## Performance

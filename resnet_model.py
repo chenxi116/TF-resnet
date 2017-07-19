@@ -260,7 +260,7 @@ class ResNet(object):
         costs.append(tf.nn.l2_loss(var))
         # tf.histogram_summary(var.op.name, var)
 
-    return tf.mul(self.weight_decay_rate, tf.add_n(costs))
+    return tf.multiply(self.weight_decay_rate, tf.add_n(costs))
 
   def _conv(self, name, x, filter_size, in_filters, out_filters, strides, atrous=1):
     """Convolution."""
@@ -278,7 +278,7 @@ class ResNet(object):
 
   def _relu(self, x, leakiness=0.0):
     """Relu, with optional leaky support."""
-    return tf.select(tf.less(x, 0.0), leakiness * x, x, name='leaky_relu')
+    return tf.where(tf.less(x, 0.0), leakiness * x, x, name='leaky_relu')
 
   def _fully_connected(self, x, out_dim):
     """FullyConnected layer for final output."""
