@@ -31,7 +31,7 @@ weights['fc1000/DW'] = np.expand_dims(
 model = resnet_model.ResNet(atrous=False)
 
 sess = tf.Session()
-sess.run(tf.initialize_all_variables())
+sess.run(tf.global_variables_initializer())
 var_list = tf.all_variables()
 count = 0
 for item in var_list:
